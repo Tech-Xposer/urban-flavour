@@ -1,0 +1,38 @@
+{
+  "name": "gourmetgo",
+  "version": "1.0.0",
+  "description": "The backend of our food recipe app is built using Node.js and Express, offering a robust and scalable solution for managing recipes and user interactions. It features RESTful APIs for CRUD operations on recipes, user authentication, and personalized recipe recommendations. With MongoDB as the database, it ensures efficient storage and retrieval of recipe data, while Mongoose provides an intuitive schema-based solution. The backend is designed for performance and security, leveraging middleware for error handling, validation, and authentication.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tech-Xposer/gourmetgo.git"
+  },
+  "author": "Ashutosh Sharma",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Tech-Xposer/gourmetgo/issues"
+  },
+  "homepage": "https://github.com/Tech-Xposer/gourmetgo#readme",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.1",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.9.14",
+    "openai": "^4.53.0",
+    "validator": "^13.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4",
+    "prettier": "^3.3.3"
+  }
+}
