@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema(
         "Please fill a valid email address",
       ],
     },
-    phone:{
+    phone: {
       type: String,
       required: true,
     },
@@ -26,9 +26,7 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    refreshToken: {
-      type: String,
-    },
+    refreshToken: [String],
     isVerified: {
       type: Boolean,
       default: false,
