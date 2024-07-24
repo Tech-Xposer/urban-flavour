@@ -174,10 +174,6 @@ export const userLogout = async (req, res) => {
     return ApiResponse.error(res, error.message, error.statusCode || 500);
   }
 };
-import ApiError from './path/to/ApiError'; // Ensure ApiError is correctly imported
-import ApiResponse from './path/to/ApiResponse'; // Ensure ApiResponse is correctly imported
-import BlackList from './path/to/BlackList'; // Ensure BlackList model is correctly imported
-import User from './path/to/User'; // Ensure User model is correctly imported
 
 export const refreshAccessToken = async (req, res) => {
   try {
@@ -187,7 +183,7 @@ export const refreshAccessToken = async (req, res) => {
       throw new ApiError(404, "Token not found");
     }
 
-    // Blacklist and clear old tokens
+    
     if (accessToken) {
       await BlackList.create({ token: accessToken });
       res.clearCookie("accessToken");
@@ -197,9 +193,9 @@ export const refreshAccessToken = async (req, res) => {
       await BlackList.create({ token: refreshToken });
       res.clearCookie("refreshToken");
 
-      const user = await User.findOne({ refreshToken }); // Ensure you are querying correctly for multiple tokens
+      const user = await User.findOne({ refreshToken }); 
       if (user) {
-        // Remove old refresh token from user record
+        
         user.refreshToken = user.refreshToken.filter(
           (token) => token !== refreshToken
         );
@@ -208,7 +204,7 @@ export const refreshAccessToken = async (req, res) => {
         // Generate new tokens
         const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await user.generateRefreshTokenandAccessToken();
 
-        // Set new tokens in cookies
+        // assigning cookies
         res.cookie("accessToken", newAccessToken, {
           httpOnly: true,
           secure: true,
