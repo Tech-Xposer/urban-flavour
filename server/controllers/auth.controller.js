@@ -139,3 +139,31 @@ export const loginUser = async (req, res) => {
     );
   }
 };
+
+export const userLogout = async (req, res) => {
+  try {
+    const { refreshToken, accessToken } = req.signedCookies;
+    if (
+      !accessToken &&
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      accessToken = req.headers.authorization.split(" ")[1];
+    }
+    if (accessToken || refreshToken) {
+      if (accessToken) {
+        await BlackList.create({ token: accessToken });
+        res.clearCookie("accessToken");
+      }
+      if (refreshToken) {
+        await BlackList.create({ token: refreshToken });
+        res.clearCookie("refreshToken");
+      }
+      return ApiResponse.success(res, "Logged out successfully");
+    }
+
+    throw new ApiError(404, "Token not found");
+  } catch (error) {
+    return ApiResponse.error(res, error.message, error.statusCode || 500);
+  }
+};
