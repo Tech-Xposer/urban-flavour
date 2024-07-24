@@ -232,3 +232,14 @@ export const refreshAccessToken = async (req, res) => {
 };
 
 
+export const currentUser = async (req, res) => {
+	try {
+		const currentUser = await User.findById(req.user.id).select(
+			"-password -isVerified  -updatedAt -__v -createdAt"
+		);
+		if (!currentUser) throw new ApiError(404, "User Not Found");
+		return ApiResponse.ok(res, 200, "User Found", currentUser);
+	} catch (error) {
+		return ApiResponse.error(res, error.message, error.statusCode || 500);
+	}
+};
