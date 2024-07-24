@@ -93,6 +93,7 @@ export const loginUser = async (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
+    signed:true
   };
   try {
     const { email, password } = req.body;
@@ -166,7 +167,7 @@ export const userLogout = async (req, res) => {
           await user.save();
         }
       }
-      return ApiResponse.success(res, "Logged out successfully");
+      return ApiResponse.success(res,200, "Logged out successfully");
     }
 
     throw new ApiError(404, "Token not found");
