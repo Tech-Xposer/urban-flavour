@@ -158,6 +158,13 @@ export const userLogout = async (req, res) => {
       if (refreshToken) {
         await BlackList.create({ token: refreshToken });
         res.clearCookie("refreshToken");
+        const user = await User.findOne({ refreshToken });
+        if (user) {
+          user.refreshToken = user.refreshToken.filter(
+            (token) => token !== refreshToken,
+          );
+          await user.save();
+        }
       }
       return ApiResponse.success(res, "Logged out successfully");
     }
