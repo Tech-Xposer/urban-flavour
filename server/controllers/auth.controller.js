@@ -174,3 +174,63 @@ export const userLogout = async (req, res) => {
     return ApiResponse.error(res, error.message, error.statusCode || 500);
   }
 };
+import ApiError from './path/to/ApiError'; // Ensure ApiError is correctly imported
+import ApiResponse from './path/to/ApiResponse'; // Ensure ApiResponse is correctly imported
+import BlackList from './path/to/BlackList'; // Ensure BlackList model is correctly imported
+import User from './path/to/User'; // Ensure User model is correctly imported
+
+export const refreshAccessToken = async (req, res) => {
+  try {
+    let { accessToken, refreshToken } = req.signedCookies;
+
+    if (!accessToken && !refreshToken) {
+      throw new ApiError(404, "Token not found");
+    }
+
+    // Blacklist and clear old tokens
+    if (accessToken) {
+      await BlackList.create({ token: accessToken });
+      res.clearCookie("accessToken");
+    }
+
+    if (refreshToken) {
+      await BlackList.create({ token: refreshToken });
+      res.clearCookie("refreshToken");
+
+      const user = await User.findOne({ refreshToken }); // Ensure you are querying correctly for multiple tokens
+      if (user) {
+        // Remove old refresh token from user record
+        user.refreshToken = user.refreshToken.filter(
+          (token) => token !== refreshToken
+        );
+        await user.save();
+
+        // Generate new tokens
+        const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await user.generateRefreshTokenandAccessToken();
+
+        // Set new tokens in cookies
+        res.cookie("accessToken", newAccessToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+          maxAge: 1000 * 60 * 60 * 24, // 1 day
+        });
+        res.cookie("refreshToken", newRefreshToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+          maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+        });
+
+        return ApiResponse.success(res, 200, "Tokens refreshed successfully");
+      } else {
+        throw new ApiError(404, "User not found");
+      }
+    }
+
+  } catch (error) {
+    console.log(error);
+    return ApiResponse.error(res, error.message, error.statusCode || 500);
+  }
+};
+
