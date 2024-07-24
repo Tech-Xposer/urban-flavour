@@ -87,3 +87,55 @@ export const verifyUser = async (req, res) => {
     ApiResponse.error(res, error.message, error.statusCode || 500);
   }
 };
+
+export const loginUser = async (req, res) => {
+  const options = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  };
+  try {
+    const { email, password } = req.body;
+
+    if (!Validator.isEmail(email)) {
+      throw new ApiError(400, "Please enter a valid email!");
+    }
+    if (!Validator.isStrongPassword(password)) {
+      throw new ApiError(400, "Password must be at least 8 characters long");
+    }
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    const isPasswordMatch = await user.matchPassword(password);
+
+    if (!isPasswordMatch) {
+      throw new ApiError(400, "Invalid password");
+    }
+
+    const { accessToken, refreshToken } =
+      await user.generateRefreshTokenandAccessToken();
+
+    // assigning cookies
+    res.cookie("accessToken", accessToken, {
+      ...options,
+      maxAge: 1000 * 60 * 60 * 24,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      ...options,
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
+
+    ApiResponse.success(res, 200, "Login successful");
+  } catch (error) {
+    console.log(error);
+    ApiResponse.error(
+      res,
+      error.message || "An internal server error occurred",
+      error.statusCode || 500,
+    );
+  }
+};
