@@ -144,37 +144,46 @@ export const loginUser = async (req, res) => {
 export const userLogout = async (req, res) => {
   try {
     const { refreshToken, accessToken } = req.signedCookies;
-    if (
-      !accessToken &&
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer ")
-    ) {
-      accessToken = req.headers.authorization.split(" ")[1];
-    }
-    if (accessToken || refreshToken) {
-      if (accessToken) {
-        await BlackList.create({ token: accessToken });
-        res.clearCookie("accessToken");
-      }
-      if (refreshToken) {
-        await BlackList.create({ token: refreshToken });
-        res.clearCookie("refreshToken");
-        const user = await User.findOne({ refreshToken });
-        if (user) {
-          user.refreshToken = user.refreshToken.filter(
-            (token) => token !== refreshToken,
-          );
-          await user.save();
-        }
-      }
-      return ApiResponse.success(res, 200, "Logged out successfully");
+
+    if (accessToken) {
+      await BlackList.create({ token: accessToken });
+      res.clearCookie("accessToken", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        signed: true,
+      });
     }
 
-    throw new ApiError(404, "Token not found");
+    if (refreshToken) {
+      await BlackList.create({ token: refreshToken });
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        signed: true,
+      });
+
+      const user = await User.findById(req.user.id);
+      if (user) {
+        user.refreshToken = user.refreshToken.filter(
+          (token) => token !== refreshToken
+        );
+        await user.save();
+      }
+    }
+
+    return ApiResponse.success(res, 200, "Logged out successfully");
   } catch (error) {
-    return ApiResponse.error(res, error.message, error.statusCode || 500);
+    console.error(error);
+    return ApiResponse.error(
+      res,
+      error.message || "An internal server error occurred",
+      error.statusCode || 500
+    );
   }
 };
+
 
 export const refreshAccessToken = async (req, res) => {
   try {
