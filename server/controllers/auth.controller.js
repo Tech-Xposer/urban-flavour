@@ -4,7 +4,6 @@ import ApiResponse from "../handlers/response.handler.js";
 import Validator from "validator";
 import sendEmail from "../services/email.service.js";
 import { userVerificationTemplate } from "../utils/termplate.util.js";
-import { decodeToken } from "../utils/token.util.js";
 import jwt from "jsonwebtoken";
 import BlackList from "../models/blacklist.model.js";
 
@@ -167,7 +166,7 @@ export const userLogout = async (req, res) => {
       const user = await User.findById(req.user.id);
       if (user) {
         user.refreshToken = user.refreshToken.filter(
-          (token) => token !== refreshToken
+          (token) => token !== refreshToken,
         );
         await user.save();
       }
@@ -179,59 +178,63 @@ export const userLogout = async (req, res) => {
     return ApiResponse.error(
       res,
       error.message || "An internal server error occurred",
-      error.statusCode || 500
+      error.statusCode || 500,
     );
   }
 };
 
-
 export const refreshAccessToken = async (req, res) => {
+  const incomingRefreshToken =
+    req.signedCookies?.refreshToken || req.headers.authorization;
+
+  const imcomingAccessToken =
+    req.signedCookies?.accessToken ||
+    req.headers.authorization?.replace("Bearer ", "");
+
   try {
-    let { accessToken, refreshToken } = req.signedCookies;
+    if (!incomingRefreshToken) {
+      throw new ApiError(401, "unauthorized request");
+    }
+    if (imcomingAccessToken) {
+      await BlackList.create({ token: imcomingAccessToken });
+    }
+    await BlackList.create({ token: incomingRefreshToken });
+    const decodedRefreshToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+    );
 
-    if (!accessToken && !refreshToken) {
-      throw new ApiError(404, "Token not found");
+    const user = await User.findById(decodedRefreshToken?.id);
+    if (!user) {
+      throw new ApiError(401, "invalid refresh token");
     }
 
-    if (accessToken) {
-      await BlackList.create({ token: accessToken });
-      res.clearCookie("accessToken");
-    }
+    user.refreshToken = user.refreshToken.filter(
+      (token) => token !== incomingRefreshToken,
+    );
+    await user.save();
 
-    if (refreshToken) {
-      await BlackList.create({ token: refreshToken });
-      res.clearCookie("refreshToken");
+    // Generate new tokens
+    const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+      await user.generateRefreshTokenandAccessToken();
 
-      const user = await User.findOne({ refreshToken });
-      if (user) {
-        user.refreshToken = user.refreshToken.filter(
-          (token) => token !== refreshToken,
-        );
-        await user.save();
+    // assigning cookies
+    res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      signed:true,
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
+    });
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      signed:true,
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+    });
 
-        // Generate new tokens
-        const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
-          await user.generateRefreshTokenandAccessToken();
-
-        // assigning cookies
-        res.cookie("accessToken", newAccessToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
-          maxAge: 1000 * 60 * 60 * 24, // 1 day
-        });
-        res.cookie("refreshToken", newRefreshToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
-          maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
-        });
-
-        return ApiResponse.success(res, 200, "Tokens refreshed successfully");
-      } else {
-        throw new ApiError(404, "User not found");
-      }
-    }
+    return ApiResponse.success(res, 200, "Tokens refreshed successfully");
   } catch (error) {
     console.log(error);
     return ApiResponse.error(res, error.message, error.statusCode || 500);
@@ -239,15 +242,7 @@ export const refreshAccessToken = async (req, res) => {
 };
 
 export const currentUser = async (req, res) => {
-  try {
-    const currentUser = await User.findById(req.user.id).select(
-      "-password -isVerified  -updatedAt -__v -createdAt -refreshToken",
-    );
-    if (!currentUser) throw new ApiError(404, "User Not Found");
-    return ApiResponse.success(res, 200, "current user found successfully", {
-      user: currentUser,
-    });
-  } catch (error) {
-    return ApiResponse.error(res, error.message, error.statusCode || 500);
-  }
+  return ApiResponse.success(res, 200, "user fetched successfully", {
+    user: req.user,
+  });
 };
