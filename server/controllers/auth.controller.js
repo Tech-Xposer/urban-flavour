@@ -93,7 +93,7 @@ export const loginUser = async (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
-    signed:true
+    signed: true,
   };
   try {
     const { email, password } = req.body;
@@ -167,7 +167,7 @@ export const userLogout = async (req, res) => {
           await user.save();
         }
       }
-      return ApiResponse.success(res,200, "Logged out successfully");
+      return ApiResponse.success(res, 200, "Logged out successfully");
     }
 
     throw new ApiError(404, "Token not found");
@@ -184,7 +184,6 @@ export const refreshAccessToken = async (req, res) => {
       throw new ApiError(404, "Token not found");
     }
 
-    
     if (accessToken) {
       await BlackList.create({ token: accessToken });
       res.clearCookie("accessToken");
@@ -194,16 +193,16 @@ export const refreshAccessToken = async (req, res) => {
       await BlackList.create({ token: refreshToken });
       res.clearCookie("refreshToken");
 
-      const user = await User.findOne({ refreshToken }); 
+      const user = await User.findOne({ refreshToken });
       if (user) {
-        
         user.refreshToken = user.refreshToken.filter(
-          (token) => token !== refreshToken
+          (token) => token !== refreshToken,
         );
         await user.save();
 
         // Generate new tokens
-        const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await user.generateRefreshTokenandAccessToken();
+        const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+          await user.generateRefreshTokenandAccessToken();
 
         // assigning cookies
         res.cookie("accessToken", newAccessToken, {
@@ -224,22 +223,22 @@ export const refreshAccessToken = async (req, res) => {
         throw new ApiError(404, "User not found");
       }
     }
-
   } catch (error) {
     console.log(error);
     return ApiResponse.error(res, error.message, error.statusCode || 500);
   }
 };
 
-
 export const currentUser = async (req, res) => {
-	try {
-		const currentUser = await User.findById(req.user.id).select(
-			"-password -isVerified  -updatedAt -__v -createdAt"
-		);
-		if (!currentUser) throw new ApiError(404, "User Not Found");
-		return ApiResponse.ok(res, 200, "User Found", currentUser);
-	} catch (error) {
-		return ApiResponse.error(res, error.message, error.statusCode || 500);
-	}
+  try {
+    const currentUser = await User.findById(req.user.id).select(
+      "-password -isVerified  -updatedAt -__v -createdAt -refreshToken",
+    );
+    if (!currentUser) throw new ApiError(404, "User Not Found");
+    return ApiResponse.success(res, 200, "current user found successfully", {
+      user: currentUser,
+    });
+  } catch (error) {
+    return ApiResponse.error(res, error.message, error.statusCode || 500);
+  }
 };
