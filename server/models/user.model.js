@@ -75,7 +75,7 @@ userSchema.methods.generateRefreshToken = async function () {
   const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, {
     expiresIn: "7d",
   });
-  this.refreshToken = refreshToken;
+  this.refreshToken.push(refreshToken);
   await this.save();
   return refreshToken;
 };
