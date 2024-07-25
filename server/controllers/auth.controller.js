@@ -49,7 +49,7 @@ export const signupUser = async (req, res) => {
       userVerificationTemplate(name, verificationLink),
     );
 
-    ApiResponse.success(res, 201, "User created successfully", newUser);
+    ApiResponse.created(res, "User created successfully", newUser);
   } catch (error) {
     console.log(error);
     ApiResponse.error(res, error.message, error.statusCode || 500);
