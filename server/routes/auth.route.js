@@ -14,9 +14,9 @@ const authRoute = express.Router();
 authRoute.post("/signup", signupUser);
 authRoute.get("/verify/:verificationToken", verifyUser);
 authRoute.post("/login", loginUser);
+authRoute.post("/refresh-token", refreshAccessToken);
 
 //Secured Routes
 authRoute.post("/logout",authToLoginUser, userLogout);
-authRoute.post("/refresh-token",authToLoginUser, refreshAccessToken);
 authRoute.get("/current-user", authToLoginUser, currentUser);
 export default authRoute;
