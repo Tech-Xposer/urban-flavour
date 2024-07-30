@@ -11,6 +11,7 @@ import {
 } from "../controllers/recipe.controller.js";
 import { authToLoginUser } from "../middlewares/auth.middleware.js";
 import validateRecipe from "../middlewares/recipe.middleware.js";
+import upload from "../services/multer.service.js";
 
 const recipeRoute = express.Router();
 
@@ -23,7 +24,7 @@ recipeRoute.get("/popular", popularRecipes);
 //protected routes
 recipeRoute.route("/my-recipe").get(authToLoginUser, recipeByUser);
 
-recipeRoute.post("/new", authToLoginUser, validateRecipe, addNewRecipe);
+recipeRoute.post("/new", authToLoginUser, upload.single('imageUrl'), validateRecipe, addNewRecipe);
 
 recipeRoute
   .route("/:id")

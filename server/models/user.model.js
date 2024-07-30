@@ -2,17 +2,6 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt"; // For hashing passwords
 import jwt from "jsonwebtoken";
 
-const refreshTokenSchema = new mongoose.Schema({
-  token: {
-    type: String,
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-    expires: 604800, // 10 days in seconds
-  },
-});
-
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -37,6 +26,7 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+<<<<<<< HEAD
     refreshToken: [
       {
         token: {
@@ -49,6 +39,10 @@ const userSchema = new mongoose.Schema(
         },
       },
     ],
+=======
+    refreshToken: [String],
+>>>>>>> parent of 48e2b93 (Refactor User and RefreshToken Schemas)
+
     isVerified: {
       type: Boolean,
       default: false,
@@ -65,14 +59,12 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
+  if (!this.isModified("password")) {
+    return next();
   }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {

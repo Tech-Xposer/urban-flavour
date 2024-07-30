@@ -7,6 +7,7 @@ const addNewRecipe = async (req, res) => {
   const newRecipe = new Recipe({
     ...req.body,
     author: req.user?.id,
+    imageUrl: req.file ? req.file.filename : null,
   });
 
   try {

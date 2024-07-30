@@ -1,6 +1,5 @@
-
 import jwt from "jsonwebtoken";
-const SECRET_KEY = process.env.SECRET_TOKEN;
+const SECRET_KEY = process.env.JWT_SECRET;
 
 export const generateToken = (payload, expiresIn) => {
   try {
