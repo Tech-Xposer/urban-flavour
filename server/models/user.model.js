@@ -37,7 +37,18 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    refreshToken: [refreshTokenSchema],
+    refreshToken: [
+      {
+        token: {
+          type: String,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+          expires: 604800, // 10 days in seconds
+        },
+      },
+    ],
     isVerified: {
       type: Boolean,
       default: false,
