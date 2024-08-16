@@ -3,31 +3,48 @@ import ApiResponse from "../handlers/response.handler.js";
 import ApiError from "../handlers/error.handler.js";
 import mongoose from "mongoose";
 import Rating from "../models/rating.model.js";
+import slugify from "slugify";
+import uploadImageToCloudinary from "../services/cloudinary.service.js";
 const addNewRecipe = async (req, res) => {
-  const newRecipe = new Recipe({
-    ...req.body,
-    author: req.user?.id,
-    imageUrl: req.file ? req.file.filename : null,
-  });
-
   try {
+    console.log(req.file.filename);
+    const result = await uploadImageToCloudinary(req.file.filename);
+    const newRecipe = new Recipe({
+      ...req.body,
+      slug: slugify(req.body.title, { lower: true, strict: true }),
+      author: req.user?.id,
+      imageUrl: result?.secure_url || null,
+    });
+
     const savedRecipe = await newRecipe.save();
+    console.log(savedRecipe);
     return ApiResponse.created(
       res,
       "reciped created successfully",
       savedRecipe,
     );
   } catch (error) {
+    console.log(error);
     return ApiResponse.error(res, error.message, error.statusCode || 500);
   }
 };
 
 const getAllRecipes = async (req, res) => {
   try {
-    const recipes = await Recipe.find().select("-createdAt -updatedAt -__v");
+    const recipes = await Recipe.find()
+      .select(" -updatedAt -__v")
+      .populate({
+        path: "author",
+        select: "name email",
+      })
+      .populate({
+        path: "category",
+        select: "name",
+      });
     if (recipes.length === 0) {
       throw new ApiError(404, "no recipe found");
     }
+
     return ApiResponse.success(res, "all recipes fetched successfully", {
       length: recipes.length,
       recipes,
@@ -68,14 +85,27 @@ const getRecipeById = async (req, res) => {
       throw new ApiError(400, "Invalid Recipe ID");
     }
 
-    const recipe = await Recipe.findById(id).select(
-      "-createdAt -updatedAt -__v",
-    );
+    // Fetch the recipe, excluding fields that are not needed
+    const recipe = await Recipe.findById(id)
+      .select("-updatedAt -__v")
+      .populate({
+        path: "author",
+        select: "name email",
+      });
     if (!recipe) {
       throw new ApiError(404, "Recipe not found");
     }
+    recipe.visitCount += 1;
+    await recipe.save();
 
-    const ratings = await Rating.find({ recipe: id }).select("-__v -_id");
+    // Fetch ratings and only include user's name and email
+    const ratings = await Rating.find({ recipe: id })
+      .select("-__v -_id") // Exclude fields you don't want to return
+      .populate({
+        path: "user",
+        select: "name email", // Include only name and email fields
+      });
+
     const totalScore = ratings.reduce((acc, curr) => acc + curr.score, 0);
     const averageRating = ratings.length ? totalScore / ratings.length : 0;
 
@@ -83,8 +113,10 @@ const getRecipeById = async (req, res) => {
       recipe,
       averageRating,
       totalRatings: ratings.length,
+      comments: ratings, // The populated user details will now include only name and email
     });
   } catch (error) {
+    console.log(error);
     return ApiResponse.error(res, error.message, error.statusCode || 500);
   }
 };
@@ -112,24 +144,44 @@ const deleteRecipeById = async (req, res) => {
 
 const updateRecipeById = async (req, res) => {
   const { id } = req.params;
+
   try {
     if (!id) {
-      throw new ApiError(400, "recipe id required");
+      throw new ApiError(400, "Recipe ID required");
     }
     if (!mongoose.isValidObjectId(id)) {
-      throw new ApiError(400, "Invalid recipe id");
+      throw new ApiError(400, "Invalid recipe ID");
     }
-    const recipe = await Recipe.findByIdAndUpdate(
-      id,
-      { ...req.body },
-      {
-        new: true,
-      },
-    );
+    const { ingredients, instructions, ...rest } = req.body;
+
+    const parsedIngredients =
+      typeof ingredients === "string" ? JSON.parse(ingredients) : ingredients;
+    const parsedInstructions =
+      typeof instructions === "string"
+        ? JSON.parse(instructions)
+        : instructions;
+
+    // Prepare the update object
+    const updateData = {
+      ...rest,
+      ingredients: parsedIngredients,
+      instructions: parsedInstructions,
+    };
+
+    if (req.file) {
+      console.log(req.file);
+      updateData.imageUrl = `${req.file.filename}`;
+    }
+
+    const recipe = await Recipe.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
+
     if (!recipe) {
-      throw new ApiError(404, "recipe not found");
+      throw new ApiError(404, "Recipe not found");
     }
-    return ApiResponse.success(res, "recipe updated successfully", recipe);
+
+    return ApiResponse.success(res, "Recipe updated successfully", recipe);
   } catch (error) {
     console.log(error);
     return ApiResponse.error(res, error.message, error.statusCode || 500);
@@ -179,6 +231,7 @@ const recipeByUser = async (req, res) => {
 
 const popularRecipes = async (req, res) => {
   try {
+    const { limit } = req.query;
     const ratings = await Rating.aggregate([
       {
         $group: {
@@ -187,7 +240,7 @@ const popularRecipes = async (req, res) => {
         },
       },
       { $sort: { totalScore: -1 } },
-      { $limit: 10 },
+      { $limit: parseInt(limit) || 10 },
       {
         $lookup: {
           from: "recipes",
@@ -202,6 +255,47 @@ const popularRecipes = async (req, res) => {
     ]);
     ApiResponse.success(res, "fetched successfully", ratings);
   } catch (error) {
+    console.log(error);
+    return ApiResponse.error(res, error.message, error.statusCode || 500);
+  }
+};
+
+const getrecipeBySlug = async (req, res) => {
+  const { slug } = req.params;
+  try {
+    if (!slug) {
+      throw new ApiError(400, "slug is required!");
+    }
+    // Fetch the recipe, excluding fields that are not needed
+    const recipe = await Recipe.findOne({ slug })
+      .select("-updatedAt -__v")
+      .populate({
+        path: "author",
+        select: "name email",
+      });
+    if (!recipe) {
+      throw new ApiError(404, "Recipe not found");
+    }
+
+    // Fetch ratings and only include user's name and email
+    const ratings = await Rating.find({ recipe: recipe._id })
+      .select("-__v -_id") // Exclude fields you don't want to return
+      .populate({
+        path: "user",
+        select: "name email", // Include only name and email fields
+      });
+
+    const totalScore = ratings.reduce((acc, curr) => acc + curr.score, 0);
+    const averageRating = ratings.length ? totalScore / ratings.length : 0;
+
+    return ApiResponse.success(res, "Recipe fetched successfully", {
+      recipe,
+      averageRating,
+      totalRatings: ratings.length,
+      comments: ratings, // The populated user details will now include only name and email
+    });
+  } catch (error) {
+    console.log(error);
     return ApiResponse.error(res, error.message, error.statusCode || 500);
   }
 };
@@ -216,4 +310,5 @@ export {
   searchRecipe,
   recipeByUser,
   popularRecipes,
+  getrecipeBySlug,
 };

@@ -9,7 +9,7 @@ const storage = multer.diskStorage({
   filename: function (req, file, cb) {
     cb(
       null,
-      req.body.email.split("@")[0] +
+      req.user.id +
         "-" +
         Date.now() +
         "." +

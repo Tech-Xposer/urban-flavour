@@ -20,6 +20,11 @@ const recipeSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    slug:{
+      type:String,
+      required:true,
+      unique:true
+    },
     description: {
       type: String,
       required: true,
@@ -55,6 +60,10 @@ const recipeSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
+    visitCount:{
+      type:Number,
+      default:0
+    }
   },
   {
     timestamps: true,

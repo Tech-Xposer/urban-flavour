@@ -2,6 +2,7 @@ import ApiError from "../handlers/error.handler.js";
 import mongoose from "mongoose";
 import Rating from "../models/rating.model.js";
 import ApiResponse from "../handlers/response.handler.js";
+import Recipe from "../models/recipe.model.js";
 const newRating = async (req, res) => {
   const { id } = req.params;
   const { score, review } = req.body;
@@ -15,6 +16,10 @@ const newRating = async (req, res) => {
     }
     if (score == null || review == null) {
       throw new ApiError(400, "score and review are required");
+    }
+    const checkIsRecipeExists = await Recipe.findById(id);
+    if (!checkIsRecipeExists) {
+      throw new ApiError(404, "Recipe not found");
     }
     const rating = await Rating.create({
       user: req.user.id,
@@ -31,7 +36,7 @@ const newRating = async (req, res) => {
 
 const deleteRating = async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id; 
+  const userId = req.user.id;
 
   try {
     if (!id) {
@@ -46,7 +51,7 @@ const deleteRating = async (req, res) => {
       throw new ApiError(404, "Rating not found");
     }
 
-    // Check if the requesting user is the author of the rating 
+    // Check if the requesting user is the author of the rating
     if (rating.author.toString() !== userId) {
       throw new ApiError(
         403,

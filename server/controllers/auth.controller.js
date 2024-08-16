@@ -66,7 +66,10 @@ export const verifyUser = async (req, res) => {
     if (isTokenBlackListed) {
       throw new ApiError(400, "Invalid or expired verification link");
     }
-    const { id } = jwt.verify(verificationToken, process.env.JWT_SECRET);
+    const { id } = jwt.verify(
+      verificationToken,
+      process.env.EMAIL_VERIFICATION_TOKEN_SECRET,
+    );
     const user = await User.findById(id);
     if (!user) {
       throw new ApiError(404, "User not found");
@@ -91,12 +94,11 @@ export const loginUser = async (req, res) => {
   const options = {
     httpOnly: true,
     secure: true,
-    sameSite: "none",
-    signed: true,
+    sameSite: "None",
   };
   try {
     const { email, password } = req.body;
-
+    console.log(req.body);
     if (!Validator.isEmail(email)) {
       throw new ApiError(400, "Please enter a valid email!");
     }
@@ -142,26 +144,20 @@ export const loginUser = async (req, res) => {
 
 export const userLogout = async (req, res) => {
   try {
-    const { refreshToken, accessToken } = req.signedCookies;
-
+    const { refreshToken, accessToken } = req.cookies;
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "None",
+    };
     if (accessToken) {
       await BlackList.create({ token: accessToken });
-      res.clearCookie("accessToken", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        signed: true,
-      });
+      res.clearCookie("accessToken", options);
     }
 
     if (refreshToken) {
       await BlackList.create({ token: refreshToken });
-      res.clearCookie("refreshToken", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        signed: true,
-      });
+      res.clearCookie("refreshToken", options);
 
       const user = await User.findById(req.user.id);
       if (user) {
@@ -185,10 +181,10 @@ export const userLogout = async (req, res) => {
 
 export const refreshAccessToken = async (req, res) => {
   const incomingRefreshToken =
-    req.signedCookies?.refreshToken || req.headers.authorization;
+    req.cookies?.refreshToken || req.headers.authorization;
 
   const imcomingAccessToken =
-    req.signedCookies?.accessToken ||
+    req.cookies?.accessToken ||
     req.headers.authorization?.replace("Bearer ", "");
 
   try {
@@ -221,16 +217,14 @@ export const refreshAccessToken = async (req, res) => {
     // assigning cookies
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      signed:true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "None",
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     });
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      signed:true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "None",
       maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
     });
 
@@ -242,7 +236,7 @@ export const refreshAccessToken = async (req, res) => {
 };
 
 export const currentUser = async (req, res) => {
-  return ApiResponse.success(res, 200, "user fetched successfully", {
+  return ApiResponse.success(res, "user fetched successfully", {
     user: req.user,
   });
 };
